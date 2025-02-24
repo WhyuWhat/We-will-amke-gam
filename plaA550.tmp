@@ -1,0 +1,358 @@
+[gd_scene load_steps=17 format=3 uid="uid://uyrs2bc8veq3"]
+
+[ext_resource type="Texture2D" uid="uid://1lptcqllfpjx" path="res://assits/Spritesheets/spritesheet.png" id="1_f2v3d"]
+
+[sub_resource type="GDScript" id="GDScript_kx0ok"]
+script/source = "extends CharacterBody2D
+
+# Exported variables
+@export var walk_speed: float = 130.0
+@export var dash_speed: float = 600.0
+@export var jump_force: float = -300.0
+@export var gravity: float = 1200.0
+@export var dash_duration: float = 0.2
+@export var turn_duration: float = 0.15
+
+# State management
+enum State { IDLE, WALK, TURN, DASH, JUMP, CROUCH, ATTACK }
+var current_state: State = State.IDLE
+var facing: int = -1  # -1=left (default), 1=right
+var intended_facing: int = -1
+var dash_timer: float = 0.0
+
+# Nodes
+@onready var anim_player: AnimationPlayer = $AnimationPlayer
+
+func _ready() -> void:
+	anim_player.animation_finished.connect(_on_animation_finished)
+
+func _physics_process(delta: float) -> void:
+	handle_gravity(delta)
+	handle_states(delta)
+	move_and_slide()
+
+func handle_gravity(delta: float) -> void:
+	if not is_on_floor():
+		velocity.y += gravity * delta
+	else:
+		velocity.y = 0
+
+func handle_states(delta: float) -> void:
+	var input_dir = Input.get_axis(\"ui_left\", \"ui_right\")
+	
+	match current_state:
+		State.DASH:
+			handle_dash(delta)
+		State.TURN:
+			pass  # Turn is handled by animation_finished signal
+		_:
+			handle_base_movement(input_dir)
+			handle_actions(input_dir)
+	
+	update_animations()
+
+func handle_base_movement(input_dir: float) -> void:
+	if input_dir != 0:
+		intended_facing = sign(input_dir)
+	
+	# Only process movement if not in special states
+	if current_state in [State.IDLE, State.WALK, State.CROUCH]:
+		velocity.x = input_dir * walk_speed
+		
+		if input_dir != 0 and sign(input_dir) != facing:
+			start_turn()
+
+func handle_actions(input_dir: float) -> void:
+	if Input.is_action_just_pressed(\"dash\") and current_state != State.DASH:
+		start_dash(input_dir)
+	if Input.is_action_just_pressed(\"ui_up\") and is_on_floor():
+		jump()
+	if Input.is_action_just_pressed(\"attack\"):
+		attack()
+
+func start_turn() -> void:
+	current_state = State.TURN
+	velocity.x = 0  # Stop movement during turn
+	anim_player.play(\"turn\")
+
+func complete_turn() -> void:
+	facing = intended_facing
+	scale.x = facing  # Flip sprite based on new facing direction
+	current_state = State.IDLE
+
+func start_dash(input_dir: float) -> void:
+	current_state = State.DASH
+	dash_timer = dash_duration
+	var dash_direction = sign(input_dir) if input_dir != 0 else intended_facing
+	velocity.x = dash_direction * dash_speed
+	facing = dash_direction
+	scale.x = facing  # Flip sprite based on dash direction
+
+func handle_dash(delta: float) -> void:
+	dash_timer -= delta
+	if dash_timer <= 0:
+		current_state = State.IDLE
+		velocity.x = 0
+
+func jump() -> void:
+	velocity.y = jump_force
+	current_state = State.JUMP
+
+func attack() -> void:
+	current_state = State.ATTACK
+	velocity.x = 0
+	anim_player.play(\"attack\")
+
+func update_animations() -> void:
+	match current_state:
+		State.DASH:
+			anim_player.play(\"dash\")
+		State.TURN:
+			anim_player.play(\"turn\")
+		State.ATTACK:
+			anim_player.play(\"attack\")
+		State.JUMP:
+			anim_player.play(\"jump\" if velocity.y < 0 else \"fall\")
+		_:
+			if is_on_floor():
+				if Input.is_action_pressed(\"ui_down\"):
+					anim_player.play(\"crouch\")
+				else:
+					anim_player.play(\"walk\" if abs(velocity.x) > 0 else \"idle\")
+
+func _on_animation_finished(anim_name: String) -> void:
+	match anim_name:
+		\"attack\":
+			current_state = State.IDLE
+		\"turn\":
+			complete_turn()
+"
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_3hqgp"]
+
+[sub_resource type="Animation" id="Animation_o0n6d"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_rgv43"]
+resource_name = "attack"
+length = 0.6
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [19, 20, 21, 22, 23, 24, 25]
+}
+
+[sub_resource type="Animation" id="Animation_elo0c"]
+resource_name = "crouch"
+length = 0.05
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [0]
+}
+
+[sub_resource type="Animation" id="Animation_b4kpq"]
+resource_name = "death"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [2]
+}
+
+[sub_resource type="Animation" id="Animation_426wy"]
+resource_name = "fall"
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [3, 4]
+}
+
+[sub_resource type="Animation" id="Animation_qiuym"]
+resource_name = "hurt"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 0,
+"values": [5, 6, 7, 8]
+}
+
+[sub_resource type="Animation" id="Animation_c0mbn"]
+resource_name = "idle"
+length = 0.4
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [9, 10]
+}
+
+[sub_resource type="Animation" id="Animation_ykwxv"]
+resource_name = "jump"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.3),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [11, 12]
+}
+
+[sub_resource type="Animation" id="Animation_kl05w"]
+resource_name = "land"
+length = 0.3
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.3),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [13, 14]
+}
+
+[sub_resource type="Animation" id="Animation_g0wuv"]
+resource_name = "roll"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": [15, 16, 17, 18]
+}
+
+[sub_resource type="Animation" id="Animation_f60hv"]
+resource_name = "turn"
+length = 0.15
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [26]
+}
+
+[sub_resource type="Animation" id="Animation_sw42f"]
+resource_name = "walk"
+length = 0.5
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("SpriteFrames:frame")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [27, 28, 29, 30, 31, 32]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_vb1xr"]
+_data = {
+"RESET": SubResource("Animation_o0n6d"),
+"attack": SubResource("Animation_rgv43"),
+"crouch": SubResource("Animation_elo0c"),
+"death": SubResource("Animation_b4kpq"),
+"fall": SubResource("Animation_426wy"),
+"hurt": SubResource("Animation_qiuym"),
+"idle": SubResource("Animation_c0mbn"),
+"jump": SubResource("Animation_ykwxv"),
+"land": SubResource("Animation_kl05w"),
+"roll": SubResource("Animation_g0wuv"),
+"turn": SubResource("Animation_f60hv"),
+"walk": SubResource("Animation_sw42f")
+}
+
+[node name="Player" type="CharacterBody2D"]
+script = SubResource("GDScript_kx0ok")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -7)
+scale = Vector2(0.653368, 0.691162)
+shape = SubResource("CircleShape2D_3hqgp")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_vb1xr")
+}
+
+[node name="SpriteFrames" type="Sprite2D" parent="."]
+texture = ExtResource("1_f2v3d")
+hframes = 33

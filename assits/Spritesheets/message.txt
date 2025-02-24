@@ -1,0 +1,191 @@
+extends CharacterBody2D
+
+# Movement parameters
+const WALK_SPEED = 130.0
+const CROUCH_SPEED = 60.0
+const DASH_SPEED = 300.0
+const ROLL_SPEED = 200.0
+const JUMP_VELOCITY = -320.0
+const DOUBLE_JUMP_VELOCITY = -220.0
+const GRAVITY = 900.0
+const AIR_RESISTANCE = 0.8
+
+# States
+enum State {
+    IDLE,
+    WALK,
+    JUMP,
+    FALL,
+    LAND,
+    ATTACK,
+    CROUCH,
+    DASH,
+    ROLL
+}
+
+@onready var anim_player: AnimationPlayer = $AnimationPlayer
+@onready var sprite: Sprite2D = $Sprite2D
+@onready var collision: CollisionShape2D = $CollisionShape2D
+
+var current_state: State = State.IDLE
+var current_speed: float = WALK_SPEED
+var jump_count: int = 0
+var can_dash: bool = true
+var facing_right: bool = true
+
+func _ready():
+    anim_player.animation_finished.connect(_on_animation_finished)
+
+func _physics_process(delta: float) -> void:
+    handle_states(delta)
+    move_and_slide()
+
+func handle_states(delta: float):
+    match current_state:
+        State.IDLE:
+            handle_idle(delta)
+        State.WALK:
+            handle_walk(delta)
+        State.JUMP:
+            handle_jump(delta)
+        State.FALL:
+            handle_fall(delta)
+        State.LAND:
+            handle_land(delta)
+        State.ATTACK:
+            handle_attack(delta)
+        State.CROUCH:
+            handle_crouch(delta)
+        State.DASH:
+            handle_dash(delta)
+        State.ROLL:
+            handle_roll(delta)
+
+    # Common gravity application
+    if not is_on_floor() and current_state not in [State.DASH, State.ROLL]:
+        velocity.y += GRAVITY * delta
+
+func handle_idle(_delta: float):
+    apply_horizontal_deceleration()
+    check_state_transitions()
+    
+    if Input.is_action_just_pressed("crouch"):
+        transition_to(State.CROUCH)
+
+func handle_walk(delta: float):
+    handle_movement_input(delta)
+    check_state_transitions()
+
+func handle_jump(_delta: float):
+    if velocity.y > 0:
+        transition_to(State.FALL)
+    
+    if Input.is_action_just_pressed("jump") and jump_count < 1:
+        velocity.y = DOUBLE_JUMP_VELOCITY
+        jump_count += 1
+
+func handle_fall(_delta: float):
+    if is_on_floor():
+        transition_to(State.LAND)
+
+func handle_land(_delta: float):
+    if anim_player.current_animation == "land" and not anim_player.is_playing():
+        transition_to(State.IDLE)
+
+func handle_attack(_delta: float):
+    velocity.x = move_toward(velocity.x, 0, WALK_SPEED)
+
+func handle_crouch(delta: float):
+    current_speed = CROUCH_SPEED
+    handle_movement_input(delta)
+    
+    if Input.is_action_just_released("crouch"):
+        transition_to(State.IDLE)
+
+func handle_dash(delta: float):
+    velocity.x = DASH_SPEED * (1 if facing_right else -1)
+    velocity.y = 0
+
+func handle_roll(delta: float):
+    velocity.x = ROLL_SPEED * (1 if facing_right else -1)
+    velocity.y = 0
+
+func check_state_transitions():
+    var input_dir = Input.get_axis("left", "right")
+    
+    if Input.is_action_just_pressed("attack"):
+        transition_to(State.ATTACK)
+    elif Input.is_action_just_pressed("dash") and can_dash:
+        transition_to(State.DASH)
+    elif Input.is_action_just_pressed("roll"):
+        transition_to(State.ROLL)
+    elif Input.is_action_just_pressed("jump") and is_on_floor():
+        transition_to(State.JUMP)
+        velocity.y = JUMP_VELOCITY
+    elif input_dir != 0 and current_state not in [State.ATTACK, State.DASH, State.ROLL]:
+        transition_to(State.WALK if is_on_floor() else current_state)
+    elif input_dir == 0 and is_on_floor():
+        transition_to(State.IDLE)
+
+func handle_movement_input(delta: float):
+    var input_dir = Input.get_axis("left", "right")
+    velocity.x = input_dir * current_speed
+    update_facing_direction(input_dir)
+
+func apply_horizontal_deceleration():
+    velocity.x = move_toward(velocity.x, 0, WALK_SPEED)
+
+func update_facing_direction(input_dir: float):
+    if input_dir != 0:
+        facing_right = input_dir > 0
+        sprite.flip_h = not facing_right
+
+func transition_to(new_state: State):
+    if current_state == new_state:
+        return
+    
+    # Exit current state
+    match current_state:
+        State.CROUCH:
+            # Reset collision shape
+            pass
+        State.DASH:
+            can_dash = false
+            velocity.x = WALK_SPEED * (1 if facing_right else -1)
+    
+    # Enter new state
+    match new_state:
+        State.IDLE:
+            anim_player.play("idle")
+        State.WALK:
+            anim_player.play("walk")
+        State.JUMP:
+            anim_player.play("jump")
+            jump_count = 0
+        State.FALL:
+            anim_player.play("fall")
+        State.LAND:
+            anim_player.play("land")
+        State.ATTACK:
+            anim_player.play("attack")
+        State.CROUCH:
+            anim_player.play("crouch")
+        State.DASH:
+            anim_player.play("dash")
+            can_dash = false
+        State.ROLL:
+            anim_player.play("roll")
+    
+    current_state = new_state
+
+func _on_animation_finished(anim_name: String):
+    match anim_name:
+        "attack":
+            transition_to(State.IDLE)
+        "dash":
+            transition_to(State.WALK)
+            can_dash = true
+        "roll":
+            transition_to(State.WALK)
+        "land":
+            transition_to(State.IDLE)
