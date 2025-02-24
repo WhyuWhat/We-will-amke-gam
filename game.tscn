@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3 uid="uid://dxnk28mojf6o5"]
 
 [ext_resource type="PackedScene" uid="uid://uyrs2bc8veq3" path="res://player.tscn" id="1_24f71"]
-[ext_resource type="Texture2D" uid="uid://cpa8evj4cepom" path="res://assits/world_tileset.png" id="2_ytfoi"]
+[ext_resource type="Texture2D" uid="uid://cpa8evj4cepom" path="res://scens/world_tileset.png" id="2_ytfoi"]
 [ext_resource type="PackedScene" uid="uid://bxob87bvb62o1" path="res://platform.tscn" id="3_ng4x4"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2jiht"]
