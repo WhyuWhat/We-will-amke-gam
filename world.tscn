@@ -338,7 +338,7 @@ texture = ExtResource("3_8o7jm")
 19:6/0 = 0
 19:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(0, 0, 8, 0, 8, 8, 0, 8)
 20:6/0 = 0
-20:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, 0, 8, 0, 8, 8, -8, 8)
+20:6/0/physics_layer_0/polygon_0/points = PackedVector2Array(0, 0, 0, -8, 8, -8, 8, 8, -8, 8, -8, 0)
 21:6/0 = 0
 22:6/0 = 0
 23:6/0 = 0
@@ -941,6 +941,7 @@ sources/1 = SubResource("TileSetAtlasSource_ajrab")
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 zoom = Vector2(4, 4)
+position_smoothing_enabled = true
 
 [node name="TileMap" type="TileMap" parent="."]
 scale = Vector2(3, 3)
