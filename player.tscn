@@ -1,6 +1,7 @@
-[gd_scene load_steps=18 format=3 uid="uid://uyrs2bc8veq3"]
+[gd_scene load_steps=19 format=3 uid="uid://uyrs2bc8veq3"]
 
 [ext_resource type="Texture2D" uid="uid://1lptcqllfpjx" path="res://assits/Spritesheets/spritesheet.png" id="1_f2v3d"]
+[ext_resource type="Texture2D" uid="uid://shqlqxc80r4t" path="res://assits/coin.png" id="2_ldpvt"]
 
 [sub_resource type="GDScript" id="GDScript_kx0ok"]
 script/source = "extends CharacterBody2D
@@ -374,3 +375,8 @@ libraries = {
 [node name="SpriteFrames" type="Sprite2D" parent="."]
 texture = ExtResource("1_f2v3d")
 hframes = 33
+
+[node name="Coin" type="Sprite2D" parent="."]
+position = Vector2(109.5, -21.5)
+scale = Vector2(0.0572917, 2.4375)
+texture = ExtResource("2_ldpvt")
