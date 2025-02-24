@@ -3,6 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://ble6sx8xr43vk" path="res://assits/platforms.png" id="1_8pdo3"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fjlku"]
+size = Vector2(31, 9)
 
 [node name="platform" type="AnimatableBody2D"]
 
@@ -12,4 +13,6 @@ region_enabled = true
 region_rect = Rect2(16, 47, 33, 13)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-0.5, -1.5)
 shape = SubResource("RectangleShape2D_fjlku")
+one_way_collision = true

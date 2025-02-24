@@ -358,6 +358,7 @@ _data = {
 }
 
 [node name="Player" type="CharacterBody2D"]
+z_index = 5
 script = SubResource("GDScript_kx0ok")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
